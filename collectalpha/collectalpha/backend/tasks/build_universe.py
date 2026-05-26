@@ -1,6 +1,11 @@
-from backend.adapters.tcgdex_adapter import fetch_universe
 from pathlib import Path
 import json
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.adapters.tcgdex_adapter import fetch_universe
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
