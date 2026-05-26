@@ -24,7 +24,7 @@ def startup_ping():
     )
 
 
-@scheduler.scheduled_job("interval", minutes=15)
+@scheduler.scheduled_job("interval", minutes=1)
 def scheduled_market_scan():
     print("Running automated market scan...")
 
