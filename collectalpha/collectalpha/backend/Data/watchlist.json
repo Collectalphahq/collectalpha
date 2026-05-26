@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Charizard",
+    "set": "Base Set",
+    "number": "4/102",
+    "tcgdex_id": "base1-4",
+    "category": "vintage",
+    "variants": [
+      {
+        "market_type": "raw"
+      },
+      {
+        "market_type": "graded",
+        "grading_company": "PSA",
+        "grade": "9"
+      },
+      {
+        "market_type": "graded",
+        "grading_company": "PSA",
+        "grade": "10"
+      }
+    ]
+  },
+  {
+    "name": "Umbreon VMAX",
+    "set": "Evolving Skies",
+    "number": "215/203",
+    "tcgdex_id": "swsh7-215",
+    "category": "modern_alt_art",
+    "variants": [
+      {
+        "market_type": "raw"
+      },
+      {
+        "market_type": "graded",
+        "grading_company": "PSA",
+        "grade": "10"
+      }
+    ]
+  },
+  {
+    "name": "Gengar VMAX",
+    "set": "Fusion Strike",
+    "number": "271/264",
+    "tcgdex_id": "swsh8-271",
+    "category": "modern_alt_art",
+    "variants": [
+      {
+        "market_type": "raw"
+      },
+      {
+        "market_type": "graded",
+        "grading_company": "PSA",
+        "grade": "10"
+      }
+    ]
+  }
+]
