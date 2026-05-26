@@ -167,7 +167,7 @@ def build_full_universe():
             print(f"ALERT: {card_name}")
 
     save_json(PRICE_HISTORY_FILE, history)
-    def build_full_universe():
+   def build_full_universe():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Building full Pokémon universe from TCGdex...")
