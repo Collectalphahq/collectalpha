@@ -36,19 +36,29 @@ def extract_raw_price(card):
 
     tcgplayer = pricing.get("tcgplayer", {})
     if tcgplayer:
-        prices = tcgplayer.get("prices", {})
+        # TCGdex may store variants directly under pricing.tcgplayer
+        for variant_key in ["normal", "holofoil", "reverse-holofoil", "1st-edition"]:
+            variant = tcgplayer.get(variant_key)
 
-        for variant in prices.values():
             if isinstance(variant, dict):
                 for key in ["market", "mid", "low"]:
                     if variant.get(key):
-                        return float(variant[key]), "TCGplayer"
+                        return float(variant[key]), f"TCGplayer {variant_key}"
+
+        # Backup format in case pricing.tcgplayer.prices exists
+        prices = tcgplayer.get("prices", {})
+        if isinstance(prices, dict):
+            for variant in prices.values():
+                if isinstance(variant, dict):
+                    for key in ["market", "mid", "low"]:
+                        if variant.get(key):
+                            return float(variant[key]), "TCGplayer"
 
     cardmarket = pricing.get("cardmarket", {})
     if cardmarket:
         prices = cardmarket.get("prices", {})
 
-        for key in ["averageSellPrice", "trendPrice", "avg7", "avg30"]:
+        for key in ["averageSellPrice", "trendPrice", "avg7", "avg30", "lowPrice"]:
             if prices.get(key):
                 return float(prices[key]), "Cardmarket"
 
