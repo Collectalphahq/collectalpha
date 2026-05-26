@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 from backend.alerts.discord_alerts import send_discord_embed
-from backend.adapters.tcgdex_adapter import fetch_card
+from backend.adapters.tcgdex_adapter import fetch_card, fetch_universe      
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -74,10 +74,18 @@ def calculate_score(drop_percent):
     return min(score, 100)
 
 
-def scan_market(limit=100):
-    universe = load_json(UNIVERSE_FILE, [])[:limit]
-    history = load_json(PRICE_HISTORY_FILE, {})
-    opportunities = []
+def build_full_universe():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Building full Pokémon universe from TCGdex...")
+
+    universe = fetch_universe(limit=None)
+
+    save_json(UNIVERSE_FILE, universe)
+
+    print(f"Saved full Pokémon universe with {len(universe)} cards.")
+
+    return universe
 
     print(f"Loaded {len(universe)} cards from universe.")
 
@@ -159,6 +167,18 @@ def scan_market(limit=100):
             print(f"ALERT: {card_name}")
 
     save_json(PRICE_HISTORY_FILE, history)
+    def build_full_universe():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Building full Pokémon universe from TCGdex...")
+
+    universe = fetch_universe(limit=None)
+
+    save_json(UNIVERSE_FILE, universe)
+
+    print(f"Saved full Pokémon universe with {len(universe)} cards.")
+
+    return universe
 
     print(f"Scan finished. Opportunities found: {len(opportunities)}")
 

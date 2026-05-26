@@ -29,7 +29,7 @@ def scheduled_market_scan():
     print("Running automated market scan...")
 
     try:
-        results = scan_market(limit=100)
+        results = scan_market(limit=None, rebuild_universe=true)
 
         total_results = len(results) if results else 0
 
@@ -44,7 +44,7 @@ def scheduled_market_scan():
                 },
                 {
                     "name": "Scan Limit",
-                    "value": "100",
+                    "value": "No Limit",
                     "inline": True
                 }
             ]
