@@ -16,12 +16,18 @@ def load_json(path, default):
     if not path.exists():
         return default
 
-    with open(path, "r") as file:
-        return json.load(file)
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            return json.load(file)
+    except Exception as e:
+        print(f"Failed to load JSON file {path}: {e}")
+        return default
 
 
 def save_json(path, data):
-    with open(path, "w") as file:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
 
 
@@ -71,9 +77,17 @@ def calculate_score(drop_percent):
 def scan_market(limit=100):
     universe = load_json(UNIVERSE_FILE, [])[:limit]
     history = load_json(PRICE_HISTORY_FILE, {})
+    opportunities = []
+
+    print(f"Loaded {len(universe)} cards from universe.")
 
     for item in universe:
-        card_id = item["id"]
+        card_id = item.get("id")
+        card_name = item.get("name", "Unknown Card")
+
+        if not card_id:
+            print(f"Skipping item with missing card id: {item}")
+            continue
 
         try:
             card = fetch_card(card_id)
@@ -84,11 +98,10 @@ def scan_market(limit=100):
         current_price, source = extract_raw_price(card)
 
         if current_price is None:
-            print(f"No price for {item['name']}")
+            print(f"No price for {card_name}")
             continue
 
-        card_key = f"{item['name']} {card_id} RAW"
-
+        card_key = f"{card_name} {card_id} RAW"
         old_price = history.get(card_key, {}).get("last_price")
 
         history[card_key] = {
@@ -98,11 +111,16 @@ def scan_market(limit=100):
         }
 
         if old_price is None:
-            print(f"Saved first price: {card_key}")
+            print(f"Saved first price: {card_key} | ${current_price}")
             continue
 
         drop_percent = calculate_drop(old_price, current_price)
         score = calculate_score(drop_percent)
+
+        print(
+            f"Checked {card_name}: old=${old_price}, "
+            f"current=${current_price}, drop={drop_percent}%, score={score}"
+        )
 
         if drop_percent >= 10 and score >= 70:
             image_url = None
@@ -110,11 +128,24 @@ def scan_market(limit=100):
             if card.get("image"):
                 image_url = card["image"] + "/high.webp"
 
+            opportunity = {
+                "card": card_name,
+                "card_id": card_id,
+                "source": source,
+                "previous_price": old_price,
+                "current_price": current_price,
+                "drop_percent": drop_percent,
+                "score": score,
+                "image_url": image_url,
+            }
+
+            opportunities.append(opportunity)
+
             send_discord_embed(
                 title="🚨 CollectAlpha RAW Opportunity",
                 description="Real market movement detected.",
                 fields=[
-                    {"name": "Card", "value": item["name"], "inline": True},
+                    {"name": "Card", "value": card_name, "inline": True},
                     {"name": "Card ID", "value": card_id, "inline": True},
                     {"name": "Source", "value": source, "inline": True},
                     {"name": "Previous", "value": f"${old_price}", "inline": True},
@@ -125,9 +156,13 @@ def scan_market(limit=100):
                 image_url=image_url,
             )
 
-            print(f"ALERT: {item['name']}")
+            print(f"ALERT: {card_name}")
 
     save_json(PRICE_HISTORY_FILE, history)
+
+    print(f"Scan finished. Opportunities found: {len(opportunities)}")
+
+    return opportunities
 
 
 if __name__ == "__main__":
