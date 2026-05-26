@@ -1,4 +1,3 @@
-import random
 import requests
 
 TCGDEX_BASE = "https://api.tcgdex.net/v2/en"
@@ -10,31 +9,7 @@ def fetch_card(card_id):
     response = requests.get(url, timeout=15)
     response.raise_for_status()
 
-    card = response.json()
-
-    # Temporary mock pricing so scanner can test full flow before real price APIs.
-    card["pricing"] = build_mock_pricing(card_id)
-
-    return card
-
-
-def build_mock_pricing(card_id):
-    base_price = max(1, (sum(ord(char) for char in card_id) % 200) + 1)
-
-    movement = random.uniform(0.85, 1.05)
-    market_price = round(base_price * movement, 2)
-
-    return {
-        "tcgplayer": {
-            "prices": {
-                "normal": {
-                    "market": market_price,
-                    "mid": round(market_price * 1.05, 2),
-                    "low": round(market_price * 0.9, 2),
-                }
-            }
-        }
-    }
+    return response.json()
 
 
 def fetch_universe(limit=None):
