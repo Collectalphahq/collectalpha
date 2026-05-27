@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 from backend.alerts.discord_alerts import send_discord_embed
-from backend.adapters.tcgdex_adapter import fetch_card, fetch_universe      
+from backend.adapters.tcgdex_adapter import fetch_card, fetch_universe
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -20,7 +20,7 @@ def load_json(path, default):
         with open(path, "r", encoding="utf-8") as file:
             return json.load(file)
     except Exception as e:
-        print(f"Failed to load JSON file {path}: {e}")
+        print(f"Failed to load JSON from {path}: {e}")
         return default
 
 
@@ -31,36 +31,81 @@ def save_json(path, data):
         json.dump(data, file, indent=2)
 
 
+def build_full_universe():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Building full Pokémon universe from TCGdex...")
+
+    universe = fetch_universe(limit=None)
+
+    save_json(UNIVERSE_FILE, universe)
+
+    print(f"Saved full Pokémon universe with {len(universe)} cards.")
+
+    return universe
+
+
+def load_or_build_universe(rebuild_universe=False):
+    if rebuild_universe:
+        return build_full_universe()
+
+    universe = load_json(UNIVERSE_FILE, [])
+
+    if not universe:
+        print("Universe file missing or empty. Building full universe...")
+        return build_full_universe()
+
+    print(f"Loaded saved universe with {len(universe)} cards.")
+    return universe
+
+
 def extract_raw_price(card):
     pricing = card.get("pricing", {})
 
     tcgplayer = pricing.get("tcgplayer", {})
-    if tcgplayer:
-        # TCGdex may store variants directly under pricing.tcgplayer
-        for variant_key in ["normal", "holofoil", "reverse-holofoil", "1st-edition"]:
+    if isinstance(tcgplayer, dict) and tcgplayer:
+        for variant_key in [
+            "normal",
+            "holofoil",
+            "reverse-holofoil",
+            "1st-edition",
+            "unlimited",
+        ]:
             variant = tcgplayer.get(variant_key)
 
             if isinstance(variant, dict):
-                for key in ["market", "mid", "low"]:
-                    if variant.get(key):
-                        return float(variant[key]), f"TCGplayer {variant_key}"
+                for price_key in ["market", "mid", "low"]:
+                    value = variant.get(price_key)
 
-        # Backup format in case pricing.tcgplayer.prices exists
+                    if value:
+                        return float(value), f"TCGplayer {variant_key}"
+
         prices = tcgplayer.get("prices", {})
         if isinstance(prices, dict):
-            for variant in prices.values():
+            for variant_name, variant in prices.items():
                 if isinstance(variant, dict):
-                    for key in ["market", "mid", "low"]:
-                        if variant.get(key):
-                            return float(variant[key]), "TCGplayer"
+                    for price_key in ["market", "mid", "low"]:
+                        value = variant.get(price_key)
+
+                        if value:
+                            return float(value), f"TCGplayer {variant_name}"
 
     cardmarket = pricing.get("cardmarket", {})
-    if cardmarket:
+    if isinstance(cardmarket, dict) and cardmarket:
         prices = cardmarket.get("prices", {})
 
-        for key in ["averageSellPrice", "trendPrice", "avg7", "avg30", "lowPrice"]:
-            if prices.get(key):
-                return float(prices[key]), "Cardmarket"
+        if isinstance(prices, dict):
+            for price_key in [
+                "averageSellPrice",
+                "trendPrice",
+                "avg7",
+                "avg30",
+                "lowPrice",
+            ]:
+                value = prices.get(price_key)
+
+                if value:
+                    return float(value), "Cardmarket"
 
     return None, None
 
@@ -84,22 +129,23 @@ def calculate_score(drop_percent):
     return min(score, 100)
 
 
-def build_full_universe():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+def scan_market(limit=None, rebuild_universe=False):
+    universe = load_or_build_universe(rebuild_universe=rebuild_universe)
 
-    print("Building full Pokémon universe from TCGdex...")
+    if limit is not None:
+        universe = universe[:limit]
 
-    universe = fetch_universe(limit=None)
+    history = load_json(PRICE_HISTORY_FILE, {})
+    opportunities = []
 
-    save_json(UNIVERSE_FILE, universe)
+    total_cards = len(universe)
+    priced_cards = 0
+    skipped_no_price = 0
+    failed_cards = 0
 
-    print(f"Saved full Pokémon universe with {len(universe)} cards.")
+    print(f"Starting market scan. Cards to scan: {total_cards}")
 
-    return universe
-
-    print(f"Loaded {len(universe)} cards from universe.")
-
-    for item in universe:
+    for index, item in enumerate(universe, start=1):
         card_id = item.get("id")
         card_name = item.get("name", "Unknown Card")
 
@@ -110,14 +156,18 @@ def build_full_universe():
         try:
             card = fetch_card(card_id)
         except Exception as e:
-            print(f"Failed {card_id}: {e}")
+            failed_cards += 1
+            print(f"Failed to fetch {card_name} ({card_id}): {e}")
             continue
 
         current_price, source = extract_raw_price(card)
 
         if current_price is None:
-            print(f"No price for {card_name}")
+            skipped_no_price += 1
+            print(f"No real price for {card_name} ({card_id})")
             continue
+
+        priced_cards += 1
 
         card_key = f"{card_name} {card_id} RAW"
         old_price = history.get(card_key, {}).get("last_price")
@@ -129,15 +179,16 @@ def build_full_universe():
         }
 
         if old_price is None:
-            print(f"Saved first price: {card_key} | ${current_price}")
+            print(f"[{index}/{total_cards}] Saved first real price: {card_key} | ${current_price}")
             continue
 
         drop_percent = calculate_drop(old_price, current_price)
         score = calculate_score(drop_percent)
 
         print(
-            f"Checked {card_name}: old=${old_price}, "
-            f"current=${current_price}, drop={drop_percent}%, score={score}"
+            f"[{index}/{total_cards}] Checked {card_name}: "
+            f"old=${old_price}, current=${current_price}, "
+            f"drop={drop_percent}%, score={score}"
         )
 
         if drop_percent >= 10 and score >= 70:
@@ -177,22 +228,18 @@ def build_full_universe():
             print(f"ALERT: {card_name}")
 
     save_json(PRICE_HISTORY_FILE, history)
-def build_full_universe():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("Building full Pokémon universe from TCGdex...")
-
-    universe = fetch_universe(limit=None)
-
-    save_json(UNIVERSE_FILE, universe)
-
-    print(f"Saved full Pokémon universe with {len(universe)} cards.")
-
-    return universe
-    print(f"Scan finished. Opportunities found: {len(opportunities)}")
+    print(
+        f"Scan finished. "
+        f"Total={total_cards}, "
+        f"Priced={priced_cards}, "
+        f"NoPrice={skipped_no_price}, "
+        f"Failed={failed_cards}, "
+        f"Opportunities={len(opportunities)}"
+    )
 
     return opportunities
 
 
 if __name__ == "__main__":
-    scan_market()
+    scan_market(limit=None, rebuild_universe=False)

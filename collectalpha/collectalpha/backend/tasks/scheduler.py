@@ -1,8 +1,28 @@
+import os
+
 from apscheduler.schedulers.blocking import BlockingScheduler
+
 from backend.scanners.opportunity_scanner import scan_market
 from backend.alerts.discord_alerts import send_discord_embed
 
 scheduler = BlockingScheduler()
+
+
+def get_scan_limit():
+    value = os.getenv("SCAN_LIMIT", "none").strip().lower()
+
+    if value in ["none", "no_limit", "all", ""]:
+        return None
+
+    try:
+        return int(value)
+    except ValueError:
+        print(f"Invalid SCAN_LIMIT={value}. Using no limit.")
+        return None
+
+
+def should_rebuild_universe():
+    return os.getenv("REBUILD_UNIVERSE_ON_START", "false").strip().lower() == "true"
 
 
 def startup_ping():
@@ -24,12 +44,18 @@ def startup_ping():
     )
 
 
-@scheduler.scheduled_job("interval", minutes=1)
+@scheduler.scheduled_job("interval", minutes=15)
 def scheduled_market_scan():
     print("Running automated market scan...")
 
+    scan_limit = get_scan_limit()
+    rebuild_universe = should_rebuild_universe()
+
     try:
-        results = scan_market(limit=None, rebuild_universe=true)
+        results = scan_market(
+            limit=scan_limit,
+            rebuild_universe=rebuild_universe
+        )
 
         total_results = len(results) if results else 0
 
@@ -38,19 +64,24 @@ def scheduled_market_scan():
             description="Automated market scan finished successfully.",
             fields=[
                 {
-                    "name": "Results Found",
+                    "name": "Opportunities Found",
                     "value": str(total_results),
                     "inline": True
                 },
                 {
                     "name": "Scan Limit",
-                    "value": "No Limit",
+                    "value": "No limit" if scan_limit is None else str(scan_limit),
+                    "inline": True
+                },
+                {
+                    "name": "Rebuild Universe",
+                    "value": str(rebuild_universe),
                     "inline": True
                 }
             ]
         )
 
-        print(f"Market scan complete. Results found: {total_results}")
+        print(f"Market scan complete. Opportunities found: {total_results}")
 
     except Exception as e:
         print(f"Market scan failed: {e}")
@@ -71,4 +102,5 @@ def scheduled_market_scan():
 if __name__ == "__main__":
     print("CollectAlpha scheduler started...")
     startup_ping()
+    scheduled_market_scan()
     scheduler.start()

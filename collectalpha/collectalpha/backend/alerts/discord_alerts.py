@@ -1,33 +1,20 @@
 import os
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
 
 
-def send_discord_embed(
-    title,
-    description,
-    fields=None,
-    image_url=None,
-    color=15158332
-):
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK", "").strip()
+
+
+def send_discord_embed(title, description, fields=None, image_url=None):
     if not DISCORD_WEBHOOK:
-        raise ValueError("DISCORD_WEBHOOK missing from .env")
+        print("Discord webhook missing. Alert skipped.")
+        return False
 
     embed = {
         "title": title,
         "description": description,
-        "color": color,
-        "footer": {
-            "text": "CollectAlpha Intelligence"
-        }
+        "fields": fields or []
     }
-
-    if fields:
-        embed["fields"] = fields
 
     if image_url:
         embed["image"] = {"url": image_url}
@@ -36,11 +23,11 @@ def send_discord_embed(
         "embeds": [embed]
     }
 
-    response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=10)
-
-    if response.status_code not in [200, 204]:
-        raise Exception(
-            f"Discord failed: {response.status_code} - {response.text}"
-        )
-
-    return True
+    try:
+        response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
+        response.raise_for_status()
+        print("Discord alert sent.")
+        return True
+    except Exception as e:
+        print(f"Discord alert failed: {e}")
+        return False
