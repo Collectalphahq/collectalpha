@@ -4,6 +4,7 @@ from datetime import datetime
 
 from backend.alerts.discord_alerts import send_discord_embed
 from backend.adapters.tcgdex_adapter import fetch_card, fetch_universe
+from backend.adapters.ebay_adapter import search_ebay_items
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -109,6 +110,26 @@ def extract_raw_price(card):
 
     return None, None
 
+def get_ebay_market_price(card_name):
+    query = f"{card_name} Pokemon card"
+
+    try:
+        items = search_ebay_items(query, limit=10)
+    except Exception as e:
+        print(f"eBay search failed for {card_name}: {e}")
+        return None, None, []
+
+    if not items:
+        return None, None, []
+
+    prices = [item["price"] for item in items if item.get("price")]
+
+    if not prices:
+        return None, None, items
+
+    avg_price = round(sum(prices) / len(prices), 2)
+
+    return avg_price, "eBay Active Listings", items
 
 def calculate_drop(old_price, current_price):
     if not old_price or old_price <= 0:
@@ -161,11 +182,15 @@ def scan_market(limit=None, rebuild_universe=False):
             continue
 
         current_price, source = extract_raw_price(card)
+ebay_items = []
 
-        if current_price is None:
-            skipped_no_price += 1
-            print(f"No real price for {card_name} ({card_id})")
-            continue
+if current_price is None:
+    current_price, source, ebay_items = get_ebay_market_price(card_name)
+
+if current_price is None:
+    skipped_no_price += 1
+    print(f"No real price for {card_name} ({card_id})")
+    continue
 
         priced_cards += 1
 
