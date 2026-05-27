@@ -182,15 +182,16 @@ def scan_market(limit=None, rebuild_universe=False):
             continue
 
         current_price, source = extract_raw_price(card)
-ebay_items = []
+                
+        ebay_items = []
 
-if current_price is None:
-    current_price, source, ebay_items = get_ebay_market_price(card_name)
+        if current_price is None:
+            current_price, source, ebay_items = get_ebay_market_price(card_name)
 
-if current_price is None:
-    skipped_no_price += 1
-    print(f"No real price for {card_name} ({card_id})")
-    continue
+        if current_price is None:
+            skipped_no_price += 1
+            print(f"No real price for {card_name} ({card_id})")
+            continue
 
         priced_cards += 1
 
@@ -202,7 +203,6 @@ if current_price is None:
             "source": source,
             "last_checked": datetime.utcnow().isoformat()
         }
-
         if old_price is None:
             print(f"[{index}/{total_cards}] Saved first real price: {card_key} | ${current_price}")
             continue
