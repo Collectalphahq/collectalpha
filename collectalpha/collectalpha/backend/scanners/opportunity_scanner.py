@@ -182,7 +182,6 @@ def scan_market(limit=None, rebuild_universe=False):
             continue
 
         current_price, source = extract_raw_price(card)
-                
         ebay_items = []
 
         if current_price is None:
@@ -203,6 +202,7 @@ def scan_market(limit=None, rebuild_universe=False):
             "source": source,
             "last_checked": datetime.utcnow().isoformat()
         }
+
         if old_price is None:
             print(f"[{index}/{total_cards}] Saved first real price: {card_key} | ${current_price}")
             continue
@@ -231,6 +231,7 @@ def scan_market(limit=None, rebuild_universe=False):
                 "drop_percent": drop_percent,
                 "score": score,
                 "image_url": image_url,
+                "ebay_items": ebay_items[:3],
             }
 
             opportunities.append(opportunity)
@@ -263,13 +264,13 @@ def scan_market(limit=None, rebuild_universe=False):
         f"Opportunities={len(opportunities)}"
     )
 
-  return {
-    "opportunities": opportunities,
-    "total_cards": total_cards,
-    "priced_cards": priced_cards,
-    "skipped_no_price": skipped_no_price,
-    "failed_cards": failed_cards,
-}
+    return {
+        "opportunities": opportunities,
+        "total_cards": total_cards,
+        "priced_cards": priced_cards,
+        "skipped_no_price": skipped_no_price,
+        "failed_cards": failed_cards,
+    }
 
 
 if __name__ == "__main__":
