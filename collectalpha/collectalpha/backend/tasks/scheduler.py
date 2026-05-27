@@ -52,12 +52,17 @@ def scheduled_market_scan():
     rebuild_universe = should_rebuild_universe()
 
     try:
-        results = scan_market(
-            limit=scan_limit,
-            rebuild_universe=rebuild_universe
-        )
+        report = scan_market(
+    limit=scan_limit,
+    rebuild_universe=rebuild_universe
+)
 
-        total_results = len(results) if results else 0
+opportunities = report.get("opportunities", [])
+total_results = len(opportunities)
+total_cards = report.get("total_cards", 0)
+priced_cards = report.get("priced_cards", 0)
+skipped_no_price = report.get("skipped_no_price", 0)
+failed_cards = report.get("failed_cards", 0)
 
         send_discord_embed(
             title="🔍 CollectAlpha Scan Complete",
@@ -87,16 +92,26 @@ def scheduled_market_scan():
         print(f"Market scan failed: {e}")
 
         send_discord_embed(
-            title="⚠️ CollectAlpha Scan Error",
-            description="The scanner hit an error, but the worker is still alive.",
-            fields=[
-                {
-                    "name": "Error",
-                    "value": str(e)[:900],
-                    "inline": False
-                }
-            ]
-        )
+    title="🔍 CollectAlpha Scan Complete",
+    description="Automated market scan finished successfully.",
+    fields=[
+        {
+            "name": "Opportunities Found",
+            "value": str(total_results),
+            "inline": True
+        },
+        {
+            "name": "Scan Limit",
+            "value": "No limit" if scan_limit is None else str(scan_limit),
+            "inline": True
+        },
+        {
+            "name": "Rebuild Universe",
+            "value": str(rebuild_universe),
+            "inline": True
+        }
+    ]
+)
 
 
 if __name__ == "__main__":

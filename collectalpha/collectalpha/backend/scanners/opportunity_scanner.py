@@ -238,7 +238,13 @@ def scan_market(limit=None, rebuild_universe=False):
         f"Opportunities={len(opportunities)}"
     )
 
-    return opportunities
+  return {
+    "opportunities": opportunities,
+    "total_cards": total_cards,
+    "priced_cards": priced_cards,
+    "skipped_no_price": skipped_no_price,
+    "failed_cards": failed_cards,
+}
 
 
 if __name__ == "__main__":
